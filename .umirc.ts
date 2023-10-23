@@ -43,6 +43,28 @@ export default defineConfig({
         },
     ],
     npmClient: 'yarn',
+    svgr: {
+        svgo: false
+    },
+    svgo: {
+        datauri: 'unenc',
+        multipass: true,
+        plugins: [
+            {
+                name: 'preset-default',
+                params: {
+                    overrides: {
+                        // viewBox is required to resize SVGs with CSS.
+                        // @see https://github.com/svg/svgo/issues/1128
+                        removeViewBox: false,
+                    },
+                },
+            },
+        ],
+    },
+    targets: {
+        ie: 9,
+    },
     // WEBPACK_FS_CACHE_DEBUG: 1,
     // plugins:[require.resolve('./chainWebpackConfig')],
     // postcssLoader: {
@@ -55,10 +77,17 @@ export default defineConfig({
     // },
     // urlLoaderExcludes: [/.svg$/],
     chainWebpack: (config) => {
+
+        const svgRule = config.module.rule('svg');
+        console.log("svg = ", svgRule);
+        svgRule.uses.clear();
+        svgRule
+            .use('url-loader')
+            .loader('raw-loader')
+            .end();
+
         config.plugin('CKEditorWebpackPlugin').use(CKEditorWebpackPlugin, [{}]);
-        config.module
-            .rule('svg')
-            .exclude.add(path.join(__dirname, 'node_modules', '@ckeditor'));
+        config.module.delete('svgr');
         config.module
             .rule('css')
             .exclude.add(path.join(__dirname, 'node_modules', '@ckeditor'));
@@ -77,7 +106,6 @@ export default defineConfig({
             },
             minify: true,
         });
-        console.log('postCssConfig = ', postCssConfig);
 
         ckeCss
             .use('style-loader')

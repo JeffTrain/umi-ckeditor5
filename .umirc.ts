@@ -1,16 +1,5 @@
 import {defineConfig} from '@umijs/max';
 
-import CKEditorWebpackPlugin from "@ckeditor/ckeditor5-dev-webpack-plugin";
-
-import path from "path";
-
-import {styles} from "@ckeditor/ckeditor5-dev-utils";
-
-import fs from "fs";
-
-const cssRegex = /\.css$/;
-const cssModuleRegex = /\.module\.css$/;
-
 export default defineConfig({
     antd: {},
     access: {},
@@ -65,61 +54,45 @@ export default defineConfig({
     targets: {
         ie: 9,
     },
-    // WEBPACK_FS_CACHE_DEBUG: 1,
-    // plugins:[require.resolve('./chainWebpackConfig')],
-    // postcssLoader: {
-    //   postcssOptions: styles.getPostCssConfig({
-    //     themeImporter: {
-    //       themePath: require.resolve('@ckeditor/ckeditor5-theme-lark'),
-    //     },
-    //     minify: true,
-    //   }),
-    // },
-    // urlLoaderExcludes: [/.svg$/],
-    chainWebpack: (config) => {
-
-        const svgRule = config.module.rule('svg');
-        console.log("svg = ", svgRule);
-        svgRule.uses.clear();
-        svgRule
-            .use('url-loader')
-            .loader('raw-loader')
-            .end();
-
-        config.plugin('CKEditorWebpackPlugin').use(CKEditorWebpackPlugin, [{}]);
-        config.module.delete('svgr');
-        config.module
-            .rule('css')
-            .exclude.add(path.join(__dirname, 'node_modules', '@ckeditor'));
-        config.module
-            .rule('cke-svg')
-            .test(/ckeditor5-[^/\\]+[/\\]theme[/\\]icons[/\\][^/\\]+\.svg$/)
-            .use('raw-loader')
-            .loader('raw-loader');
-
-        const ckeCss = config.module
-            .rule('cke-css')
-            .test(/ckeditor5-[^/\\]+[/\\]theme[/\\].+\.css$/);
-        let postCssConfig = styles.getPostCssConfig({
-            themeImporter: {
-                themePath: require.resolve('@ckeditor/ckeditor5-theme-lark'),
-            },
-            minify: true,
+    chainWebpack(config) {
+        const {styles} = require('@ckeditor/ckeditor5-dev-utils');
+        const svgReg = /ckeditor5-[^/\\]+[/\\]theme[/\\]icons[/\\][^/\\]+\.svg$/;
+        const cssReg = /ckeditor5-[^/\\]+[/\\]theme[/\\].+\.css$/;
+        config.module.rule('cke5-svg').test(svgReg).type(
+            // raw-loader
+            'asset/source',
+        );
+        // svg exclude
+        ['svg', 'svgr'].forEach((rule) => {
+            config.module.rule(rule).exclude.add(svgReg);
         });
-
-        ckeCss
+        // css rule
+        config.module
+            .rule('cke5-css')
+            .test(cssReg)
             .use('style-loader')
-            .loader('style-loader')
+            .loader(require.resolve('style-loader'))
             .end()
             .use('css-loader')
-            .loader('css-loader')
+            .loader(require.resolve('css-loader'))
             .end()
             .use('postcss-loader')
-            .loader('postcss-loader')
+            .loader(require.resolve('postcss-loader'))
             .options({
-                    postcssOptions: postCssConfig,
-                }
-            )
-        ;
+                postcssOptions: styles.getPostCssConfig({
+                    themeImporter: {
+                        themePath: require.resolve('@ckeditor/ckeditor5-theme-lark'),
+                    },
+                    minify: true,
+                }),
+            });
+        // css exclude
+        config.module.rule('css').exclude.add(cssReg);
+        // assets exclude
+        config.module
+            .rule('asset')
+            .oneOf('fallback')
+            .exclude.add(svgReg)
+            .add(cssReg);
     },
 });
